@@ -189,15 +189,53 @@ Below are some **more novel approaches** for a **real-time**, rule-based transfo
 
 ---
 
+## 6. dbt on GCP for Near Real-Time Micro-Batch Transformations
+
+### Key Idea
+- Utilize **dbt** running in the cloud (e.g., dbt Cloud or Cloud Build/Composer) to orchestrate **frequent micro-batch** transformations in BigQuery.
+- Store rules in a separate real-time-accessible system (e.g., Firestore or a table in BigQuery). dbt dynamically incorporates them into SQL models when triggered.
+- Triggers can run dbt jobs every few minutes or upon certain events, allowing near real-time updates.
+
+### How It Works
+1. **Data Pipeline**
+   - Keep your campaign data in BigQuery’s “raw” or “staging” datasets.
+   - dbt transformations produce “transformed” tables or incremental models in BigQuery.
+2. **Rule Storage**
+   - A Firestore collection or a versioned table in BigQuery holds the active rule sets (similar JSON or condition/value pairs).
+   - The dbt project includes macros that fetch these rules (via a query or API call) and apply them as CASE expressions or logic in your models.
+3. **Frequent Runs (Micro-Batch)**
+   - Instead of a daily or hourly dbt job, schedule it to run every few minutes or trigger it via Cloud Scheduler, Cloud Composer, or even a Pub/Sub event.
+   - Because dbt is SQL-based, the updated rules are effectively “joined” or “CASE’d” into the next build.
+4. **UI + Preview**
+   - A custom UI allows users to add or modify rules in Firestore/BigQuery.
+   - For immediate preview: the UI can call a “test run” job in dbt (e.g., `dbt run -m preview_model`) on a small dataset or ephemeral schema. The job completes in seconds/minutes.
+   - If the result looks good, the UI marks the rule “active.” The next scheduled dbt job will apply it to the full dataset.
+5. **Real-Time Feasibility**
+   - While dbt is not a sub-second streaming engine, running it every few minutes can get close to real-time for many business use cases. 
+   - Each time the job starts, it queries the updated rule set and applies it.
+
+### Why It’s Novel
+- dbt is typically used for batch transformations, but you can scale down the interval to near real-time micro-batches.
+- Storing rules in BigQuery or Firestore ensures you can apply changes without changing dbt code each time.
+- The same well-known dbt templating, version control, and documentation still apply.
+
+### Trade-offs
+- True streaming or sub-second changes are not feasible here (dbt is still a batch engine at heart).
+- More frequent dbt runs increase cost and overhead in build times.
+- Some additional complexity in macros to incorporate external rule definitions on each run.
+
+---
+
 ## Summary of Novelty & Real-Time Handling
 
-| Approach                                                      | Real-Time?               | Cost            | Complexity  | Preview Mechanism                                                       |
-|---------------------------------------------------------------|--------------------------|-----------------|-------------|-------------------------------------------------------------------------|
-| **Databricks + Delta Live Tables**                           | Near real-time (seconds) | Higher          | Medium-High | Small sample Spark job; broadcast updated rules                         |
-| **Dataflow + Bigtable**                                      | Near real-time (seconds) | Medium-High     | High        | On-demand “test pipeline” or sample query in separate pipeline          |
-| **Databricks + Redis**                                       | Near real-time (seconds) | Higher          | High        | On-demand Spark microjob or microservice with Redis lookups             |
-| **Query Rewriting Microservice**                             | Instant for new queries  | Medium          | Medium      | “Test query” endpoint with immediate SQL rewrite to show results        |
-| **Vertex AI Feature Store + Real-Time Function**             | Near real-time (seconds) | Medium          | Medium-High | Cloud Function/Run test endpoint returning immediate transformations    |
+| Approach                                                      | Real-Time?                 | Cost            | Complexity  | Preview Mechanism                                                        |
+|---------------------------------------------------------------|----------------------------|-----------------|-------------|----------------------------------------------------------------------------|
+| **Databricks + Delta Live Tables**                           | Near real-time (seconds)   | Higher          | Medium-High | Small sample Spark job; broadcast updated rules                           |
+| **Dataflow + Bigtable**                                      | Near real-time (seconds)   | Medium-High     | High        | On-demand “test pipeline” or sample query in separate pipeline            |
+| **Databricks + Redis**                                       | Near real-time (seconds)   | Higher          | High        | On-demand Spark microjob or microservice with Redis lookups               |
+| **Query Rewriting Microservice**                             | Instant for new queries    | Medium          | Medium      | “Test query” endpoint with immediate SQL rewrite to show results          |
+| **Vertex AI Feature Store + Real-Time Function**             | Near real-time (seconds)   | Medium          | Medium-High | Cloud Function/Run test endpoint returning immediate transformations      |
+| **dbt on GCP (Micro-Batch)**                                 | ~Near real-time (minutes)  | Medium          | Medium      | “Test run” on a small dataset or ephemeral schema in dbt                  |
 
 **General Pattern**:
 1. **User modifies a rule** in a custom UI.  
