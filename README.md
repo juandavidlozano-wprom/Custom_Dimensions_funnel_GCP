@@ -1,6 +1,6 @@
 # Novel Real-Time Rule-Based Transformation Approaches on GCP
 
-Below are some **more novel approaches** for a **real-time**, rule-based transformation system on GCP. These go beyond the typical “dbt + BigQuery” or “scheduled stored procedure” patterns and focus on **instant rule updates** and **continuous data processing**. Each idea includes a high-level design, how rules are stored/queried, and how the user can see changes immediately.
+Below are some **novel approaches** for a **real-time**, rule-based transformation system on GCP. Focus on **instant rule updates** and **continuous data processing**. Each idea includes a high-level design, how rules are stored/queried, and how the user can see changes immediately.
 
 ---
 
